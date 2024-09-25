@@ -13,6 +13,7 @@
             padding: 0;
             background: #333;
             overflow: hidden;
+            font-family: Arial, sans-serif;
         }
         #canvas-wrap {
             position: absolute;
@@ -34,11 +35,12 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 45px;
+            height: auto;
             background: #444;
             z-index: 1000;
             overflow-x: auto;
             white-space: nowrap;
+            padding: 5px 0;
         }
         #game-options ul {
             list-style-type: none;
@@ -49,6 +51,7 @@
         #game-options li {
             display: inline-block;
             margin-right: 5px;
+            margin-bottom: 5px;
         }
         .button {
             display: inline-block;
@@ -57,6 +60,7 @@
             color: #fff;
             text-decoration: none;
             border-radius: 3px;
+            cursor: pointer;
         }
         .button:hover { background: #777; }
         #clock { font-weight: bold; }
@@ -111,6 +115,7 @@
     <div id="game-options">
         <ul>
             <li><b id="clock" class="button">00:00:00</b></li>
+            <li><a href="#" id="NEW_GAME" class="button" title="Start a new game">New Game</a></li>
             <li><a href="#" id="SHOW_EDGE" class="button left" title="Show edge pieces only">Border</a></li>
             <li><a href="#" id="SHOW_MIDDLE" class="button middle" title="Show middle pieces only">Middle</a></li>
             <li><a href="#" id="SHOW_ALL" class="button right" title="Show all pieces">All</a></li>
@@ -120,7 +125,7 @@
             <li>
                 <select id="set-parts"></select>
             </li>
-            <li id="create"><a href="#" class="button add" id="SHOW_FILEPICKER" title="Create puzzle">Create puzzle</a></li>
+            <li id="create"><a href="#" class="button add" id="SHOW_FILEPICKER" title="Load custom image">Load Image</a></li>
         </ul>
     </div>
 
@@ -134,12 +139,13 @@
         <h1>Congratulations!</h1>
         <h2>You solved it in</h2>
         <h3><span id="time"></span></h3>
+        <a href="#" id="new-game-after-win" class="button">Start New Game</a>
     </div>
 
     <div class="hide" id="create-puzzle">
         <h1>Choose an image</h1>
         <form id="image-form">
-            <input type="file" id="image-input">
+            <input type="file" id="image-input" accept="image/*">
             <p id="image-error" class="hide">That's not an image</p>
             <p id="dnd"><i>Or drag one from your computer</i></p>
         </form>
@@ -148,11 +154,15 @@
     <div id="help" class="hide">
         <h2>How to play</h2>
         <ul>
+            <li>Use your mouse to drag and move puzzle pieces.</li>
+            <li>Right-click or use arrow keys to rotate pieces.</li>
             <li>Change the number of pieces with the selector on the top.</li>
-            <li>Use left/right arrows, or right click to rotate a piece.</li>
             <li>Toggle between edge or middle pieces using the buttons.</li>
+            <li>Use the "New Game" button to start a new puzzle with a random image.</li>
+            <li>Use the "Load Image" button to upload your own image for the puzzle.</li>
         </ul>
         <h3>Good luck!</h3>
+        <a href="#" id="close-help" class="button">Close</a>
     </div>
 
     <script>
@@ -277,6 +287,7 @@
                 this.canvas.height = this.image.height * ratio;
             },
             createPieces: function() {
+                this.pieces = [];
                 var rows = Math.sqrt(this.options.pieces);
                 var cols = Math.sqrt(this.options.pieces);
                 var pieceWidth = this.canvas.width / cols;
@@ -400,6 +411,34 @@
                     self.start();
                 };
 
+                Util.$('NEW_GAME').onclick = function(e) {
+                    e.preventDefault();
+                    self.newGame();
+                };
+
+                Util.$('SHOW_FILEPICKER').onclick = function(e) {
+                    e.preventDefault();
+                    Util.$('create-puzzle').className = '';
+                    Util.$('overlay').className = '';
+                };
+
+                Util.$('image-input').onchange = function(e) {
+                    self.loadCustomImage(e.target.files[0]);
+                };
+
+                Util.$('close-help').onclick = function(e) {
+                    e.preventDefault();
+                    Util.$('help').className = 'hide';
+                    Util.$('overlay').className = 'hide';
+                };
+
+                Util.$('new-game-after-win').onclick = function(e) {
+                    e.preventDefault();
+                    Util.$('congrat').className = 'hide';
+                    Util.$('overlay').className = 'hide';
+                    self.newGame();
+                };
+
                 window.onresize = function() {
                     self.resizeCanvas();
                     self.start();
@@ -471,6 +510,22 @@
                 return (hours < 10 ? "0" : "") + hours + ":" +
                        (minutes < 10 ? "0" : "") + minutes + ":" +
                        (seconds < 10 ? "0" : "") + seconds;
+            },
+            newGame: function() {
+                this.completed = false;
+                this.options.image = 'https://picsum.photos/800/600?' + new Date().getTime();
+                this.loadImage();
+            },
+            loadCustomImage: function(file) {
+                var self = this;
+                var reader = new FileReader();
+                reader.onload = function(event) {
+                    self.options.image = event.target.result;
+                    self.loadImage();
+                    Util.$('create-puzzle').className = 'hide';
+                    Util.$('overlay').className = 'hide';
+                };
+                reader.readAsDataURL(file);
             }
         };
 
