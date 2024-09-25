@@ -167,7 +167,7 @@
             // Class creation helper
             var Class = {
                 extend: function(prop) {
-                    var _super = this.prototype;
+                    var _super = this.prototype || {};
                     var prototype = Object.create(_super);
                     for (var name in prop) {
                         prototype[name] = prop[name];
