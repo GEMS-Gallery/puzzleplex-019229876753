@@ -263,7 +263,8 @@
                     this.canvas.height = this.image.height * ratio;
                 },
                 createPieces: function() {
-                    var rows = cols = Math.sqrt(this.options.pieces);
+                    var rows = Math.sqrt(this.options.pieces);
+                    var cols = Math.sqrt(this.options.pieces);
                     var pieceWidth = this.canvas.width / cols;
                     var pieceHeight = this.canvas.height / rows;
 
