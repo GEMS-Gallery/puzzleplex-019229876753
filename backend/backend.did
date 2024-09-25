@@ -1,0 +1,7 @@
+type Puzzle = vec vec nat;
+service : {
+  getPuzzle: () -> (Puzzle) query;
+  isSolved: () -> (bool) query;
+  makeMove: (nat, nat) -> (bool);
+  newPuzzle: () -> (Puzzle);
+}
