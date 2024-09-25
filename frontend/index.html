@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Jigsaw Puzzle</title>
     <style>
         html, body {
@@ -25,6 +25,8 @@
             position: absolute;
             top: 0;
             left: 0;
+            max-width: 100%;
+            max-height: calc(100% - 45px);
         }
         .hide { display: none; }
         #game-options {
@@ -35,14 +37,17 @@
             height: 45px;
             background: #444;
             z-index: 1000;
+            overflow-x: auto;
+            white-space: nowrap;
         }
         #game-options ul {
             list-style-type: none;
             margin: 0;
             padding: 5px;
+            display: inline-block;
         }
         #game-options li {
-            float: left;
+            display: inline-block;
             margin-right: 5px;
         }
         .button {
@@ -64,6 +69,9 @@
             padding: 20px;
             border-radius: 5px;
             z-index: 2000;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
         }
         #overlay {
             position: fixed;
@@ -80,6 +88,16 @@
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 1001;
+            max-width: 90%;
+            max-height: 90%;
+        }
+        @media (max-width: 600px) {
+            #game-options {
+                height: auto;
+            }
+            #canvas-wrap {
+                top: 90px;
+            }
         }
     </style>
 </head>
@@ -193,6 +211,7 @@
             this.rotation = 0;
             this.row = row;
             this.col = col;
+            this.isEdge = row === 0 || col === 0 || row === Math.sqrt(this.image.pieces) - 1 || col === Math.sqrt(this.image.pieces) - 1;
         }
 
         Piece.prototype = {
@@ -214,8 +233,8 @@
             this.options = Util.extend({
                 container: 'canvas',
                 image: 'https://picsum.photos/800/600',
-                pieces: 10,
-                defaultPieces: 10,
+                pieces: 16,
+                defaultPieces: 16,
                 maxWidth: 800,
                 maxHeight: 600
             }, options);
@@ -229,6 +248,7 @@
             this.draggingPiece = null;
             this.offsetX = 0;
             this.offsetY = 0;
+            this.showMode = 'all';
 
             this.loadImage();
             this.bindEvents();
@@ -288,17 +308,22 @@
             draw: function() {
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 for (var i = 0; i < this.pieces.length; i++) {
-                    this.pieces[i].draw(this.ctx);
+                    if (this.showMode === 'all' || 
+                        (this.showMode === 'edge' && this.pieces[i].isEdge) || 
+                        (this.showMode === 'middle' && !this.pieces[i].isEdge)) {
+                        this.pieces[i].draw(this.ctx);
+                    }
                 }
                 requestAnimationFrame(this.draw.bind(this));
             },
             bindEvents: function() {
                 var self = this;
                 
-                this.canvas.onmousedown = function(e) {
+                this.canvas.onmousedown = this.canvas.ontouchstart = function(e) {
+                    e.preventDefault();
                     var rect = self.canvas.getBoundingClientRect();
-                    var x = e.clientX - rect.left;
-                    var y = e.clientY - rect.top;
+                    var x = (e.clientX || e.touches[0].clientX) - rect.left;
+                    var y = (e.clientY || e.touches[0].clientY) - rect.top;
                     for (var i = self.pieces.length - 1; i >= 0; i--) {
                         if (self.pieces[i].isInside(x, y)) {
                             self.draggingPiece = self.pieces[i];
@@ -309,15 +334,17 @@
                     }
                 };
 
-                this.canvas.onmousemove = function(e) {
+                this.canvas.onmousemove = this.canvas.ontouchmove = function(e) {
+                    e.preventDefault();
                     if (self.draggingPiece) {
                         var rect = self.canvas.getBoundingClientRect();
-                        self.draggingPiece.x = e.clientX - rect.left - self.offsetX;
-                        self.draggingPiece.y = e.clientY - rect.top - self.offsetY;
+                        self.draggingPiece.x = ((e.clientX || e.touches[0].clientX) - rect.left) - self.offsetX;
+                        self.draggingPiece.y = ((e.clientY || e.touches[0].clientY) - rect.top) - self.offsetY;
                     }
                 };
 
-                this.canvas.onmouseup = function() {
+                this.canvas.onmouseup = this.canvas.ontouchend = function(e) {
+                    e.preventDefault();
                     if (self.draggingPiece) {
                         self.snapPiece(self.draggingPiece);
                         self.draggingPiece = null;
@@ -353,8 +380,28 @@
                     self.showHelp();
                 };
 
+                Util.$('SHOW_EDGE').onclick = function(e) {
+                    e.preventDefault();
+                    self.showMode = 'edge';
+                };
+
+                Util.$('SHOW_MIDDLE').onclick = function(e) {
+                    e.preventDefault();
+                    self.showMode = 'middle';
+                };
+
+                Util.$('SHOW_ALL').onclick = function(e) {
+                    e.preventDefault();
+                    self.showMode = 'all';
+                };
+
                 Util.$('set-parts').onchange = function() {
                     self.options.pieces = parseInt(this.value);
+                    self.start();
+                };
+
+                window.onresize = function() {
+                    self.resizeCanvas();
                     self.start();
                 };
             },
