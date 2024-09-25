@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas Puzzle - All-in-One File</title>
+    <title>Jigsaw Puzzle</title>
     <style>
-        /* Combined styles from modal.css, style.css, and buttons.css */
         html, body {
             width: 100%;
             height: 100%;
@@ -21,12 +21,10 @@
             right: 0;
             bottom: 0;
         }
-        #canvas {
+        #canvas, #image, #image-preview {
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
         }
         .hide { display: none; }
         #game-options {
@@ -57,7 +55,7 @@
         }
         .button:hover { background: #777; }
         #clock { font-weight: bold; }
-        #modal-window {
+        #modal-window, #congrat, #help, #create-puzzle {
             position: fixed;
             top: 50%;
             left: 50%;
@@ -95,21 +93,16 @@
     <div id="game-options">
         <ul>
             <li><b id="clock" class="button">00:00:00</b></li>
-            <li><a href="#" id="SHOW_EDGE" class="button">Border</a></li>
-            <li><a href="#" id="SHOW_MIDDLE" class="button">Middle</a></li>
-            <li><a href="#" id="SHOW_ALL" class="button">All</a></li>
-            <li><a href="#" id="JIGSAW_SHUFFLE" class="button">Shuffle</a></li>
-            <li><a href="#" id="SHOW_PREVIEW" class="button">Preview</a></li>
-            <li><a href="#" id="SHOW_HELP" class="button">Help</a></li>
+            <li><a href="#" id="SHOW_EDGE" class="button left" title="Show edge pieces only">Border</a></li>
+            <li><a href="#" id="SHOW_MIDDLE" class="button middle" title="Show middle pieces only">Middle</a></li>
+            <li><a href="#" id="SHOW_ALL" class="button right" title="Show all pieces">All</a></li>
+            <li><a href="#" id="JIGSAW_SHUFFLE" class="button left" title="Shuffle">Shuffle</a></li>
+            <li><a href="#" id="SHOW_PREVIEW" class="button middle" title="Preview">Preview</a></li>
+            <li><a href="#" id="SHOW_HELP" class="button help right" title="Help">Help</a></li>
             <li>
-                <select id="set-parts">
-                    <option value="10">10 Pieces</option>
-                    <option value="20">20 Pieces</option>
-                    <option value="30">30 Pieces</option>
-                    <option value="40">40 Pieces</option>
-                    <option value="50">50 Pieces</option>
-                </select>
+                <select id="set-parts"></select>
             </li>
+            <li id="create"><a href="#" class="button add" id="SHOW_FILEPICKER" title="Create puzzle">Create puzzle</a></li>
         </ul>
     </div>
 
@@ -125,339 +118,339 @@
         <h3><span id="time"></span></h3>
     </div>
 
+    <div class="hide" id="create-puzzle">
+        <h1>Choose an image</h1>
+        <form id="image-form">
+            <input type="file" id="image-input">
+            <p id="image-error" class="hide">That's not an image</p>
+            <p id="dnd"><i>Or drag one from your computer</i></p>
+        </form>
+    </div>
+
     <div id="help" class="hide">
         <h2>How to play</h2>
         <ul>
-            <li>Drag pieces to move them</li>
-            <li>Right-click or use arrow keys to rotate pieces</li>
-            <li>Use the buttons to show different piece types</li>
-            <li>Change the number of pieces with the selector</li>
+            <li>Change the number of pieces with the selector on the top.</li>
+            <li>Use left/right arrows, or right click to rotate a piece.</li>
+            <li>Toggle between edge or middle pieces using the buttons.</li>
         </ul>
         <h3>Good luck!</h3>
     </div>
 
     <script>
-        // Combined JavaScript from all .js files
-        (function() {
-            "use strict";
+    (function() {
+        "use strict";
 
-            // Utility functions
-            var Util = {
-                randint: function(n) { return Math.floor(Math.random() * n); },
-                $: function(id) { return document.getElementById(id); },
-                addEvent: function(elem, event, fn) {
-                    if (elem.addEventListener) {
-                        elem.addEventListener(event, fn, false);
-                    } else {
-                        elem.attachEvent("on" + event, function() {
-                            return fn.call(elem, window.event);
-                        });
-                    }
-                },
-                extend: function(orig, obj) {
-                    for (var prop in obj) {
-                        if (obj.hasOwnProperty(prop)) {
-                            orig[prop] = obj[prop];
-                        }
-                    }
-                    return orig;
-                }
-            };
-
-            // Class creation helper
-            var Class = {
-                extend: function extend(prop) {
-                    var _super = this.prototype || {};
-                    var prototype = Object.create(_super);
-                    for (var name in prop) {
-                        prototype[name] = prop[name];
-                    }
-                    function Class() {
-                        if (this.init) {
-                            this.init.apply(this, arguments);
-                        }
-                    }
-                    Class.prototype = prototype;
-                    Class.prototype.constructor = Class;
-                    Class.extend = extend;
-                    return Class;
-                }
-            };
-
-            // Event Emitter
-            var EventEmitter = {
-                on: function(event, fn) {
-                    this._events = this._events || {};
-                    this._events[event] = this._events[event] || [];
-                    this._events[event].push(fn);
-                },
-                emit: function(event) {
-                    this._events = this._events || {};
-                    if (event in this._events === false) return;
-                    for (var i = 0; i < this._events[event].length; i++) {
-                        this._events[event][i].apply(this, Array.prototype.slice.call(arguments, 1));
+        // Utility functions
+        var Util = {
+            $: function(id) { return document.getElementById(id); },
+            randInt: function(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; },
+            extend: function(obj1, obj2) {
+                for (var key in obj2) {
+                    if (obj2.hasOwnProperty(key)) {
+                        obj1[key] = obj2[key];
                     }
                 }
-            };
-
-            // Puzzle piece class
-            var Piece = Class.extend({
-                init: function(x, y, img, width, height, edges) {
-                    this.x = x;
-                    this.y = y;
-                    this.img = img;
-                    this.width = width;
-                    this.height = height;
-                    this.edges = edges;
-                    this.rotation = 0;
-                },
-                draw: function(ctx) {
-                    ctx.save();
-                    ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
-                    ctx.rotate(this.rotation * Math.PI / 180);
-                    ctx.drawImage(this.img, -this.width / 2, -this.height / 2, this.width, this.height);
-                    ctx.restore();
-                }
-            });
-
-            // Jigsaw puzzle class
-            var Jigsaw = Class.extend({
-                init: function(options) {
-                    this.options = Util.extend({
-                        container: 'canvas',
-                        image: 'https://picsum.photos/800/600',
-                        pieces: 10,
-                        spread: 0.7,
-                        maxWidth: 800,
-                        maxHeight: 600
-                    }, options);
-
-                    this.canvas = Util.$(this.options.container);
-                    this.ctx = this.canvas.getContext('2d');
-                    this.pieces = [];
-                    this.completed = false;
-                    this.startTime = null;
-
-                    this.loadImage();
-                    this.bindEvents();
-                },
-                loadImage: function() {
-                    var self = this;
-                    this.image = new Image();
-                    this.image.onload = function() {
-                        self.start();
-                    };
-                    this.image.src = this.options.image;
-                },
-                start: function() {
-                    this.resizeCanvas();
-                    this.createPieces();
-                    this.shuffle();
-                    this.draw();
-                    this.startTime = new Date();
-                    this.updateClock();
-                },
-                resizeCanvas: function() {
-                    var ratio = Math.min(this.options.maxWidth / this.image.width, this.options.maxHeight / this.image.height);
-                    this.canvas.width = this.image.width * ratio;
-                    this.canvas.height = this.image.height * ratio;
-                },
-                createPieces: function() {
-                    var rows = Math.sqrt(this.options.pieces);
-                    var cols = Math.sqrt(this.options.pieces);
-                    var pieceWidth = this.canvas.width / cols;
-                    var pieceHeight = this.canvas.height / rows;
-
-                    for (var y = 0; y < rows; y++) {
-                        for (var x = 0; x < cols; x++) {
-                            var piece = new Piece(
-                                x * pieceWidth,
-                                y * pieceHeight,
-                                this.image,
-                                pieceWidth,
-                                pieceHeight,
-                                this.generateEdges()
-                            );
-                            this.pieces.push(piece);
-                        }
-                    }
-                },
-                generateEdges: function() {
-                    return [
-                        Math.random() < 0.5, // top
-                        Math.random() < 0.5, // right
-                        Math.random() < 0.5, // bottom
-                        Math.random() < 0.5  // left
-                    ];
-                },
-                shuffle: function() {
-                    for (var i = 0; i < this.pieces.length; i++) {
-                        var piece = this.pieces[i];
-                        piece.x = Util.randint(this.canvas.width * this.options.spread);
-                        piece.y = Util.randint(this.canvas.height * this.options.spread);
-                        piece.rotation = Util.randint(4) * 90;
-                    }
-                },
-                draw: function() {
-                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                    for (var i = 0; i < this.pieces.length; i++) {
-                        this.pieces[i].draw(this.ctx);
-                    }
-                    requestAnimationFrame(this.draw.bind(this));
-                },
-                bindEvents: function() {
-                    var self = this;
-                    var dragging = false;
-                    var piece = null;
-                    var offset = { x: 0, y: 0 };
-
-                    this.canvas.onmousedown = function(e) {
-                        piece = self.getPieceAt(e.offsetX, e.offsetY);
-                        if (piece) {
-                            dragging = true;
-                            offset.x = e.offsetX - piece.x;
-                            offset.y = e.offsetY - piece.y;
-                        }
-                    };
-
-                    this.canvas.onmousemove = function(e) {
-                        if (dragging && piece) {
-                            piece.x = e.offsetX - offset.x;
-                            piece.y = e.offsetY - offset.y;
-                        }
-                    };
-
-                    this.canvas.onmouseup = function() {
-                        dragging = false;
-                        if (piece) {
-                            self.snapPiece(piece);
-                            self.checkCompletion();
-                        }
-                    };
-
-                    this.canvas.oncontextmenu = function(e) {
-                        e.preventDefault();
-                        var piece = self.getPieceAt(e.offsetX, e.offsetY);
-                        if (piece) {
-                            piece.rotation = (piece.rotation + 90) % 360;
-                        }
-                    };
-
-                    Util.$('JIGSAW_SHUFFLE').onclick = function(e) {
-                        e.preventDefault();
-                        self.shuffle();
-                    };
-
-                    Util.$('SHOW_PREVIEW').onclick = function(e) {
-                        e.preventDefault();
-                        self.togglePreview();
-                    };
-
-                    Util.$('SHOW_HELP').onclick = function(e) {
-                        e.preventDefault();
-                        self.showHelp();
-                    };
-
-                    Util.$('set-parts').onchange = function() {
-                        self.options.pieces = parseInt(this.value);
-                        self.start();
-                    };
-                },
-                getPieceAt: function(x, y) {
-                    for (var i = this.pieces.length - 1; i >= 0; i--) {
-                        var piece = this.pieces[i];
-                        if (x >= piece.x && x <= piece.x + piece.width &&
-                            y >= piece.y && y <= piece.y + piece.height) {
-                            return piece;
-                        }
-                    }
-                    return null;
-                },
-                snapPiece: function(piece) {
-                    var snapDistance = 20;
-                    var snapX = piece.x % piece.width;
-                    var snapY = piece.y % piece.height;
-                    
-                    if (snapX < snapDistance) piece.x -= snapX;
-                    if (snapX > piece.width - snapDistance) piece.x += piece.width - snapX;
-                    if (snapY < snapDistance) piece.y -= snapY;
-                    if (snapY > piece.height - snapDistance) piece.y += piece.height - snapY;
-                },
-                checkCompletion: function() {
-                    var completed = this.pieces.every(function(piece) {
-                        return piece.x % piece.width === 0 &&
-                               piece.y % piece.height === 0 &&
-                               piece.rotation % 360 === 0;
+                return obj1;
+            },
+            addEvent: function(elem, event, fn) {
+                if (elem.addEventListener) {
+                    elem.addEventListener(event, fn, false);
+                } else {
+                    elem.attachEvent("on" + event, function() {
+                        return fn.call(elem, window.event);
                     });
-                    
-                    if (completed && !this.completed) {
-                        this.completed = true;
-                        this.showCongratulations();
-                    }
-                },
-                showCongratulations: function() {
-                    var endTime = new Date();
-                    var timeDiff = endTime - this.startTime;
-                    var seconds = Math.floor(timeDiff / 1000);
-                    var minutes = Math.floor(seconds / 60);
-                    seconds = seconds % 60;
-                    
-                    Util.$('time').textContent = minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
-                    Util.$('congrat').className = '';
-                    Util.$('overlay').className = '';
-                },
-                togglePreview: function() {
-                    var preview = Util.$('image-preview');
-                    if (preview.className === 'hide') {
-                        preview.className = '';
-                        preview.getContext('2d').drawImage(this.image, 0, 0, preview.width, preview.height);
-                    } else {
-                        preview.className = 'hide';
-                    }
-                },
-                showHelp: function() {
-                    Util.$('help').className = '';
-                    Util.$('overlay').className = '';
-                },
-                updateClock: function() {
-                    if (!this.completed) {
-                        var now = new Date();
-                        var timeDiff = now - this.startTime;
-                        var seconds = Math.floor(timeDiff / 1000);
-                        var minutes = Math.floor(seconds / 60);
-                        var hours = Math.floor(minutes / 60);
-                        
-                        seconds = seconds % 60;
-                        minutes = minutes % 60;
-                        
-                        var timeString = 
-                            (hours < 10 ? "0" : "") + hours + ":" +
-                            (minutes < 10 ? "0" : "") + minutes + ":" +
-                            (seconds < 10 ? "0" : "") + seconds;
-                        
-                        Util.$('clock').textContent = timeString;
-                        
-                        setTimeout(this.updateClock.bind(this), 1000);
+                }
+            }
+        };
+
+        // EventEmitter
+        function EventEmitter() {
+            this.events = {};
+        }
+
+        EventEmitter.prototype = {
+            on: function(event, fn) {
+                this.events[event] = this.events[event] || [];
+                this.events[event].push(fn);
+            },
+            emit: function(event, data) {
+                if (this.events[event]) {
+                    this.events[event].forEach(function(fn) {
+                        fn(data);
+                    });
+                }
+            }
+        };
+
+        // Piece class
+        function Piece(x, y, width, height, image, row, col) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+            this.image = image;
+            this.rotation = 0;
+            this.row = row;
+            this.col = col;
+        }
+
+        Piece.prototype = {
+            draw: function(ctx) {
+                ctx.save();
+                ctx.translate(this.x + this.width / 2, this.y + this.height / 2);
+                ctx.rotate(this.rotation * Math.PI / 180);
+                ctx.drawImage(this.image, this.col * this.width, this.row * this.height, this.width, this.height, -this.width / 2, -this.height / 2, this.width, this.height);
+                ctx.restore();
+            },
+            isInside: function(x, y) {
+                return x >= this.x && x <= this.x + this.width &&
+                       y >= this.y && y <= this.y + this.height;
+            }
+        };
+
+        // Jigsaw class
+        function Jigsaw(options) {
+            this.options = Util.extend({
+                container: 'canvas',
+                image: 'https://picsum.photos/800/600',
+                pieces: 10,
+                defaultPieces: 10,
+                maxWidth: 800,
+                maxHeight: 600
+            }, options);
+
+            this.canvas = Util.$(this.options.container);
+            this.ctx = this.canvas.getContext('2d');
+            this.pieces = [];
+            this.completed = false;
+            this.startTime = null;
+            this.eventEmitter = new EventEmitter();
+            this.draggingPiece = null;
+            this.offsetX = 0;
+            this.offsetY = 0;
+
+            this.loadImage();
+            this.bindEvents();
+        }
+
+        Jigsaw.prototype = {
+            loadImage: function() {
+                var self = this;
+                this.image = new Image();
+                this.image.onload = function() {
+                    self.start();
+                };
+                this.image.src = this.options.image;
+            },
+            start: function() {
+                this.resizeCanvas();
+                this.createPieces();
+                this.shuffle();
+                this.draw();
+                this.startTime = new Date();
+                this.updateClock();
+            },
+            resizeCanvas: function() {
+                var ratio = Math.min(this.options.maxWidth / this.image.width, this.options.maxHeight / this.image.height);
+                this.canvas.width = this.image.width * ratio;
+                this.canvas.height = this.image.height * ratio;
+            },
+            createPieces: function() {
+                var rows = cols = Math.sqrt(this.options.pieces);
+                var pieceWidth = this.canvas.width / cols;
+                var pieceHeight = this.canvas.height / rows;
+
+                for (var y = 0; y < rows; y++) {
+                    for (var x = 0; x < cols; x++) {
+                        var piece = new Piece(
+                            x * pieceWidth,
+                            y * pieceHeight,
+                            pieceWidth,
+                            pieceHeight,
+                            this.image,
+                            y,
+                            x
+                        );
+                        this.pieces.push(piece);
                     }
                 }
+            },
+            shuffle: function() {
+                for (var i = 0; i < this.pieces.length; i++) {
+                    var piece = this.pieces[i];
+                    piece.x = Util.randInt(0, this.canvas.width - piece.width);
+                    piece.y = Util.randInt(0, this.canvas.height - piece.height);
+                    piece.rotation = Util.randInt(0, 3) * 90;
+                }
+            },
+            draw: function() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                for (var i = 0; i < this.pieces.length; i++) {
+                    this.pieces[i].draw(this.ctx);
+                }
+                requestAnimationFrame(this.draw.bind(this));
+            },
+            bindEvents: function() {
+                var self = this;
+                
+                this.canvas.onmousedown = function(e) {
+                    var rect = self.canvas.getBoundingClientRect();
+                    var x = e.clientX - rect.left;
+                    var y = e.clientY - rect.top;
+                    for (var i = self.pieces.length - 1; i >= 0; i--) {
+                        if (self.pieces[i].isInside(x, y)) {
+                            self.draggingPiece = self.pieces[i];
+                            self.offsetX = x - self.draggingPiece.x;
+                            self.offsetY = y - self.draggingPiece.y;
+                            break;
+                        }
+                    }
+                };
+
+                this.canvas.onmousemove = function(e) {
+                    if (self.draggingPiece) {
+                        var rect = self.canvas.getBoundingClientRect();
+                        self.draggingPiece.x = e.clientX - rect.left - self.offsetX;
+                        self.draggingPiece.y = e.clientY - rect.top - self.offsetY;
+                    }
+                };
+
+                this.canvas.onmouseup = function() {
+                    if (self.draggingPiece) {
+                        self.snapPiece(self.draggingPiece);
+                        self.draggingPiece = null;
+                        self.checkCompletion();
+                    }
+                };
+
+                this.canvas.oncontextmenu = function(e) {
+                    e.preventDefault();
+                    var rect = self.canvas.getBoundingClientRect();
+                    var x = e.clientX - rect.left;
+                    var y = e.clientY - rect.top;
+                    for (var i = self.pieces.length - 1; i >= 0; i--) {
+                        if (self.pieces[i].isInside(x, y)) {
+                            self.pieces[i].rotation = (self.pieces[i].rotation + 90) % 360;
+                            break;
+                        }
+                    }
+                };
+
+                Util.$('JIGSAW_SHUFFLE').onclick = function(e) {
+                    e.preventDefault();
+                    self.shuffle();
+                };
+
+                Util.$('SHOW_PREVIEW').onclick = function(e) {
+                    e.preventDefault();
+                    self.togglePreview();
+                };
+
+                Util.$('SHOW_HELP').onclick = function(e) {
+                    e.preventDefault();
+                    self.showHelp();
+                };
+
+                Util.$('set-parts').onchange = function() {
+                    self.options.pieces = parseInt(this.value);
+                    self.start();
+                };
+            },
+            snapPiece: function(piece) {
+                var snapDistance = 20;
+                var cols = Math.sqrt(this.options.pieces);
+                var pieceWidth = this.canvas.width / cols;
+                var pieceHeight = this.canvas.height / cols;
+
+                var snapX = Math.round(piece.x / pieceWidth) * pieceWidth;
+                var snapY = Math.round(piece.y / pieceHeight) * pieceHeight;
+
+                if (Math.abs(piece.x - snapX) < snapDistance && Math.abs(piece.y - snapY) < snapDistance) {
+                    piece.x = snapX;
+                    piece.y = snapY;
+                    piece.rotation = 0;
+                }
+            },
+            checkCompletion: function() {
+                var completed = this.pieces.every(function(piece) {
+                    return piece.x === piece.col * piece.width &&
+                           piece.y === piece.row * piece.height &&
+                           piece.rotation === 0;
+                });
+                
+                if (completed && !this.completed) {
+                    this.completed = true;
+                    this.showCongratulations();
+                }
+            },
+            showCongratulations: function() {
+                var endTime = new Date();
+                var timeDiff = endTime - this.startTime;
+                Util.$('time').textContent = this.formatTime(timeDiff);
+                Util.$('congrat').className = '';
+                Util.$('overlay').className = '';
+            },
+            togglePreview: function() {
+                var preview = Util.$('image-preview');
+                if (preview.className === 'hide') {
+                    preview.className = '';
+                    preview.width = this.canvas.width;
+                    preview.height = this.canvas.height;
+                    var ctx = preview.getContext('2d');
+                    ctx.drawImage(this.image, 0, 0, preview.width, preview.height);
+                } else {
+                    preview.className = 'hide';
+                }
+            },
+            showHelp: function() {
+                Util.$('help').className = '';
+                Util.$('overlay').className = '';
+            },
+            updateClock: function() {
+                if (!this.completed) {
+                    var now = new Date();
+                    var diff = now - this.startTime;
+                    var clock = Util.$('clock');
+                    clock.textContent = this.formatTime(diff);
+                    setTimeout(this.updateClock.bind(this), 1000);
+                }
+            },
+            formatTime: function(diff) {
+                var hours = Math.floor(diff / 3600000);
+                var minutes = Math.floor((diff % 3600000) / 60000);
+                var seconds = Math.floor((diff % 60000) / 1000);
+                return (hours < 10 ? "0" : "") + hours + ":" +
+                       (minutes < 10 ? "0" : "") + minutes + ":" +
+                       (seconds < 10 ? "0" : "") + seconds;
+            }
+        };
+
+        // Initialize the game
+        window.onload = function() {
+            var game = new Jigsaw({
+                container: 'canvas',
+                image: 'https://picsum.photos/800/600',
+                pieces: 16
             });
 
-            // Initialize the game
-            window.onload = function() {
-                var game = new Jigsaw({
-                    container: 'canvas',
-                    image: 'https://picsum.photos/800/600',
-                    pieces: 10
-                });
-
-                Util.$('modal-window-close').onclick = function(e) {
-                    e.preventDefault();
-                    Util.$('overlay').className = 'hide';
-                    Util.$('congrat').className = 'hide';
-                    Util.$('help').className = 'hide';
-                };
+            Util.$('modal-window-close').onclick = function(e) {
+                e.preventDefault();
+                Util.$('overlay').className = 'hide';
+                Util.$('congrat').className = 'hide';
+                Util.$('help').className = 'hide';
             };
-        })();
+
+            // Populate piece count dropdown
+            var setParts = Util.$('set-parts');
+            [16, 25, 36, 49, 64, 81, 100].forEach(function(count) {
+                var option = document.createElement('option');
+                option.value = count;
+                option.textContent = count + ' Pieces';
+                setParts.appendChild(option);
+            });
+        };
+    })();
     </script>
 </body>
 </html>
